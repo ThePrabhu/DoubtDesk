@@ -25,8 +25,6 @@ export interface SimilarDoubt {
 
 export async function POST(req: Request) {
   try {
-    const { email } = await requireAuth();
-
     const body = await req.json();
     const { content, classroomId: rawClassroomId } = body as {
       content: string;
@@ -35,6 +33,7 @@ export async function POST(req: Request) {
     const classroomId = parseOptionalClassroomId(rawClassroomId);
 
     if (classroomId) {
+      const { email } = await requireAuth();
       await requireMembership(email, classroomId);
     }
 

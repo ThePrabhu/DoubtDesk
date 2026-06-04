@@ -15,14 +15,13 @@ const groq = new Groq({
 });
 
 export async function GET(req: Request) {
-    const { searchParams } = new URL(req.url);
-    const classroomIdStr = searchParams.get("classroomId");
-    if (!classroomIdStr) {
-        return NextResponse.json({ error: "Classroom ID required" }, { status: 400 });
-    }
-
     try {
         const { email } = await requireAuth();
+        const { searchParams } = new URL(req.url);
+        const classroomIdStr = searchParams.get("classroomId");
+        if (!classroomIdStr) {
+            return NextResponse.json({ error: "Classroom ID required" }, { status: 400 });
+        }
         const classroomId = parseClassroomId(classroomIdStr);
         await requireMembership(email, classroomId);
 

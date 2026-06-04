@@ -17,7 +17,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const classroomIdStr = searchParams.get("classroomId");
-        if (!classroomIdStr || !/^[1-9]\d*$/.test(classroomIdStr)) {
+        if (!classroomIdStr) {
             return NextResponse.json({ error: "classroomId is required" }, { status: 400 });
         }
 

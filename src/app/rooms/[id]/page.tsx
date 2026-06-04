@@ -1092,16 +1092,22 @@ function ClassroomInsightsView({
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isTeacher = role === "teacher";
+  const isTeacher = role === "teacher" || role === "owner" || role === "admin";
 
-  const fetchData = () => {
+  const fetchData = async () => {
     setLoading(true);
-    fetch(`/api/analytics?classroomId={classroomId}`)
-      .then((res) => res.json())
-      .then((d) => {
-        setData(d);
-        setLoading(false);
-      });
+    try {
+      const res = await fetch(`/api/analytics?classroomId=${classroomId}`);
+      if (!res.ok) {
+        throw new Error(`Analytics request failed with status ${res.status}`);
+      }
+      setData(await res.json());
+    } catch (error) {
+      console.error("Error loading classroom analytics:", error);
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -1112,6 +1118,13 @@ function ClassroomInsightsView({
     return (
       <div className="flex justify-center p-20">
         <Loader2 className="w-6 h-6 text-purple-500 animate-spin" />
+      </div>
+    );
+
+  if (!data)
+    return (
+      <div className="rounded-2xl border border-slate-200 dark:border-zinc-900 p-8 text-center text-sm text-slate-500 dark:text-zinc-400">
+        Classroom analytics are unavailable right now.
       </div>
     );
 

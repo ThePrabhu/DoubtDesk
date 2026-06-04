@@ -29,7 +29,7 @@ export async function GET(req: Request) {
         const limit = Math.min(Math.max(Number(searchParams.get('limit')) || 20, 1), 100);
         const offset = (page - 1) * limit;
         
-        await requireMembership(email, classroomId);
+        const membership = await requireMembership(email, classroomId);
 
         // Total members count
         const totalMembersResult = await db
@@ -52,8 +52,21 @@ export async function GET(req: Request) {
             .limit(limit)
             .offset(offset);
 
+        const canViewEmails = ["teacher", "owner", "admin"].includes(membership.role);
+        const visibleMembers = canViewEmails
+            ? members.map((member) => ({
+                userEmail: member.userEmail,
+                role: member.role,
+                joinedAt: member.joinedAt,
+            }))
+            : members.map((member, index) => ({
+                displayName: `Student_${offset + index + 1}`,
+                role: member.role,
+                joinedAt: member.joinedAt,
+            }));
+
         return NextResponse.json({
-            members,
+            members: visibleMembers,
             pagination: {
                 total,
                 page,

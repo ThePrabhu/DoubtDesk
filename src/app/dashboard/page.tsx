@@ -60,10 +60,14 @@ export default function Dashboard() {
     const fetchAnalytics = async () => {
         try {
             const res = await fetch('/api/analytics');
+            if (!res.ok) {
+                throw new Error(`Analytics request failed with status ${res.status}`);
+            }
             const result = await res.json();
             setData(result);
         } catch (error) {
             console.error("Error loading analytics:", error);
+            setData(null);
         } finally {
             setLoading(false);
         }
@@ -75,6 +79,14 @@ export default function Dashboard() {
 
     if (loading) {
         return <DashboardSkeleton />;
+    }
+
+    if (!data) {
+        return (
+            <div className="p-10 text-center text-sm text-slate-500 dark:text-zinc-400">
+                Analytics are unavailable right now.
+            </div>
+        );
     }
 
     const solvedCount = data?.solvedStats?.find((s: any) => s.status === 'solved')?.count || 0;

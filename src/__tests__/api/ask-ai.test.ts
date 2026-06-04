@@ -102,7 +102,7 @@ describe('Ask AI API Endpoint', () => {
     });
 
     it('rejects classroom-scoped requests from non-members', async () => {
-        selectResultsQueue.push([{ blockedUntil: null }], []);
+        selectResultsQueue.push([{ blockedUntil: null }], [], []);
 
         const req = new Request('http://localhost/api/ask-ai', {
             method: 'POST',

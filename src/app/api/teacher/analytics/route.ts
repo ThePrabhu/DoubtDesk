@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/configs/db";
-import { doubtsTable, repliesTable, classroomsTable, usersTable } from "@/configs/schema";
+import { doubtsTable, repliesTable, classroomsTable, membershipsTable, usersTable } from "@/configs/schema";
 import { and, eq, inArray, gte, lte } from "drizzle-orm";
 import { DoubtRecord, ReplyRecord } from "@/types";
 import {
@@ -21,8 +21,22 @@ export async function GET(req: NextRequest) {
         
         // Find if user is a teacher in classrooms even if role field is not fully populated
         const classroomsTaught = await db.select().from(classroomsTable).where(eq(classroomsTable.teacherEmail, email));
+        const teacherMemberships = await db
+            .select({
+                classroomId: membershipsTable.classroomId,
+                role: membershipsTable.role,
+            })
+            .from(membershipsTable)
+            .where(eq(membershipsTable.userEmail, email));
+        const teacherMembershipIds = teacherMemberships
+            .filter((membership) => ["teacher", "owner", "admin"].includes(membership.role))
+            .map((membership) => membership.classroomId);
         
-        const isTeacherOrAdmin = dbUser?.role === 'teacher' || dbUser?.role === 'admin' || classroomsTaught.length > 0;
+        const isTeacherOrAdmin =
+            dbUser?.role === 'teacher' ||
+            dbUser?.role === 'admin' ||
+            classroomsTaught.length > 0 ||
+            teacherMembershipIds.length > 0;
         
         if (!isTeacherOrAdmin) {
             return NextResponse.json({ error: "Forbidden: Teachers or admins only" }, { status: 403 });
@@ -53,7 +67,17 @@ export async function GET(req: NextRequest) {
                 university: classroomsTable.university
             }).from(classroomsTable);
         } else {
-            classroomsList = classroomsTaught.map(c => ({
+            const membershipClassrooms = teacherMembershipIds.length > 0
+                ? await db.select({
+                    id: classroomsTable.id,
+                    name: classroomsTable.name,
+                    university: classroomsTable.university
+                }).from(classroomsTable).where(inArray(classroomsTable.id, teacherMembershipIds))
+                : [];
+            const accessibleClassrooms = new Map(
+                [...classroomsTaught, ...membershipClassrooms].map((classroom) => [classroom.id, classroom])
+            );
+            classroomsList = [...accessibleClassrooms.values()].map(c => ({
                 id: c.id,
                 name: c.name,
                 university: c.university

@@ -18,6 +18,7 @@ import { createDoubtSchema } from "@/lib/validations/doubt";
 import { createClassroomDoubtNotifications } from "@/lib/notifications/service";
 import { inngest } from "@/inngest/client"; 
 import {
+    getOptionalAuth,
     parseOptionalClassroomId,
     requireAuth,
     requireMembership,
@@ -35,11 +36,21 @@ export async function GET(req: Request) {
     const bookmarked = searchParams.get("bookmarked") === "true";
 
     try {
-        const { email } = await requireAuth();
+        const auth = await getOptionalAuth();
+        const email = auth?.email ?? null;
         const classroomId = parseOptionalClassroomId(classroomIdStr);
-        const membership = classroomId
-            ? await requireMembership(email, classroomId)
-            : null;
+        let membership = null;
+
+        if (classroomId) {
+            if (!email) {
+                return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            }
+            membership = await requireMembership(email, classroomId);
+        }
+
+        if ((type === "ai" || bookmarked) && !email) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
 
         const conditions: SQL[] = [];
 
@@ -50,10 +61,14 @@ export async function GET(req: Request) {
         }
 
         const isTeacher =
-            membership?.role === "teacher" || membership?.role === "owner";
+            membership?.role === "teacher" ||
+            membership?.role === "owner" ||
+            membership?.role === "admin";
 
         if (!isTeacher) {
-            const teacherCondition = or(not(eq(doubtsTable.type, "teacher")), eq(doubtsTable.userEmail, email));
+            const teacherCondition = email
+                ? or(not(eq(doubtsTable.type, "teacher")), eq(doubtsTable.userEmail, email))
+                : not(eq(doubtsTable.type, "teacher"));
             if (teacherCondition) conditions.push(teacherCondition);
         }
 
@@ -72,12 +87,12 @@ export async function GET(req: Request) {
 
         if (type && type !== "All") {
             conditions.push(eq(doubtsTable.type, type));
-            if (type === "ai") {
+            if (type === "ai" && email) {
                 conditions.push(eq(doubtsTable.userEmail, email));
             }
         }
 
-        if (bookmarked) {
+        if (bookmarked && email) {
             const userBookmarks = await db
                 .select({ doubtId: bookmarksTable.doubtId })
                 .from(bookmarksTable)
@@ -153,7 +168,7 @@ export async function GET(req: Request) {
             }));
         }
 
-        if (doubts.length > 0) {
+        if (doubts.length > 0 && email) {
             const userBookmarks = await db
                 .select({ doubtId: bookmarksTable.doubtId })
                 .from(bookmarksTable)
@@ -164,7 +179,9 @@ export async function GET(req: Request) {
                 ...doubt,
                 hasBookmarked: bookmarkedIds.has(doubt.id)
             }));
+        }
 
+        if (doubts.length > 0) {
             const tagRows = await db
                 .select({
                     doubtId: doubtTagsTable.doubtId,

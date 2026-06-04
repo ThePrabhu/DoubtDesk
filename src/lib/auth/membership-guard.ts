@@ -2,10 +2,10 @@ import { currentUser } from "@clerk/nextjs/server";
 import { and, eq } from "drizzle-orm";
 
 import { db } from "@/configs/db";
-import { membershipsTable } from "@/configs/schema";
+import { classroomsTable, membershipsTable } from "@/configs/schema";
 import { ApiError } from "@/lib/error-handler";
 
-const TEACHER_ROLES = new Set(["teacher", "owner"]);
+const TEACHER_ROLES = new Set(["teacher", "owner", "admin"]);
 
 export type AuthenticatedUser = NonNullable<
     Awaited<ReturnType<typeof currentUser>>
@@ -15,22 +15,34 @@ export type ClassroomMembership = {
     role: string;
 };
 
-export async function requireAuth(): Promise<{
+export type AuthenticatedContext = {
     user: AuthenticatedUser;
     email: string;
-}> {
+};
+
+export async function getOptionalAuth(): Promise<AuthenticatedContext | null> {
     const user = await currentUser();
 
     if (!user) {
-        throw new ApiError(401, "Unauthorized");
+        return null;
     }
 
     const email = user.primaryEmailAddress?.emailAddress;
     if (!email) {
-        throw new ApiError(400, "Email required");
+        throw new ApiError(401, "Unauthorized");
     }
 
     return { user, email };
+}
+
+export async function requireAuth(): Promise<AuthenticatedContext> {
+    const auth = await getOptionalAuth();
+
+    if (!auth) {
+        throw new ApiError(401, "Unauthorized");
+    }
+
+    return auth;
 }
 
 export function parseClassroomId(value: unknown): number {
@@ -70,6 +82,20 @@ export async function requireMembership(
         );
 
     if (!membership) {
+        const [ownedClassroom] = await db
+            .select({ teacherEmail: classroomsTable.teacherEmail })
+            .from(classroomsTable)
+            .where(
+                and(
+                    eq(classroomsTable.id, classroomId),
+                    eq(classroomsTable.teacherEmail, email),
+                ),
+            );
+
+        if (ownedClassroom) {
+            return { role: "owner" };
+        }
+
         throw new ApiError(403, "Access denied to this classroom");
     }
 

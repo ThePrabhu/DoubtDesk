@@ -14,13 +14,13 @@ jest.mock("@clerk/nextjs/server", () => ({
     currentUser: jest.fn(),
 }));
 
-const membershipResults: Array<{ role: string }[]> = [];
+const membershipResults: Array<Record<string, string>[]> = [];
 
 const createMembershipQuery = () => {
     const query = {
         from: jest.fn(() => query),
         where: jest.fn(() => query),
-        then: (resolve: (value: { role: string }[]) => unknown) =>
+        then: (resolve: (value: Record<string, string>[]) => unknown) =>
             Promise.resolve(resolve(membershipResults.shift() ?? [])),
     };
     return query;
@@ -64,6 +64,15 @@ describe("membership guard", () => {
         });
     });
 
+    it("rejects authenticated users without a primary email with a 401 ApiError", async () => {
+        currentUserMock.mockResolvedValue({ primaryEmailAddress: null } as never);
+
+        await expect(requireAuth()).rejects.toMatchObject<ApiError>({
+            statusCode: 401,
+            message: "Unauthorized",
+        });
+    });
+
     it("strictly parses positive classroom IDs", () => {
         expect(parseClassroomId("42")).toBe(42);
         expect(parseOptionalClassroomId(null)).toBeNull();
@@ -81,7 +90,7 @@ describe("membership guard", () => {
     });
 
     it("rejects users without classroom membership", async () => {
-        membershipResults.push([]);
+        membershipResults.push([], []);
 
         await expect(
             requireMembership("outsider@example.com", 7),
@@ -91,8 +100,21 @@ describe("membership guard", () => {
         });
     });
 
-    it("requires a teacher or owner role for teacher-only actions", async () => {
-        membershipResults.push([{ role: "student" }], [{ role: "teacher" }]);
+    it("allows the recorded classroom owner without a membership row", async () => {
+        membershipResults.push([], [{ teacherEmail: "owner@example.com" }]);
+
+        await expect(
+            requireMembership("owner@example.com", 7),
+        ).resolves.toEqual({ role: "owner" });
+    });
+
+    it("allows teacher, owner, and admin roles for teacher-only actions", async () => {
+        membershipResults.push(
+            [{ role: "student" }],
+            [{ role: "teacher" }],
+            [{ role: "owner" }],
+            [{ role: "admin" }],
+        );
 
         await expect(
             requireTeacher("student@example.com", 7),
@@ -100,5 +122,11 @@ describe("membership guard", () => {
         await expect(
             requireTeacher("teacher@example.com", 7),
         ).resolves.toEqual({ role: "teacher" });
+        await expect(
+            requireTeacher("owner@example.com", 7),
+        ).resolves.toEqual({ role: "owner" });
+        await expect(
+            requireTeacher("admin@example.com", 7),
+        ).resolves.toEqual({ role: "admin" });
     });
 });

@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/configs/db';
-import { classroomsTable, membershipsTable } from '@/configs/schema';
-import { eq, and } from 'drizzle-orm';
+import { classroomsTable } from '@/configs/schema';
+import { eq } from 'drizzle-orm';
 import { checkUserBlock } from '@/lib/auth-utils';
 import { buildErrorResponse } from '@/lib/error-handler';
 import {
     parseClassroomId,
     requireAuth,
+    requireMembership,
     requireTeacher,
 } from '@/lib/auth/membership-guard';
 
@@ -22,8 +23,8 @@ export async function GET(
         if (isBlocked) return errorResponse;
         const { id } = await params;
         const roomId = parseClassroomId(id);
+        const membership = await requireMembership(email, roomId);
 
-        // Optimised query: Fetch classroom and membership in a single join
         const [roomData] = await db
             .select({
                 id: classroomsTable.id,
@@ -34,20 +35,15 @@ export async function GET(
                 inviteCode: classroomsTable.inviteCode,
                 pedagogyLevel: classroomsTable.pedagogyLevel,
                 targetGradeLevel: classroomsTable.targetGradeLevel,
-                role: membershipsTable.role,
             })
             .from(classroomsTable)
-            .innerJoin(
-                membershipsTable,
-                and(eq(membershipsTable.classroomId, classroomsTable.id), eq(membershipsTable.userEmail, email))
-            )
             .where(eq(classroomsTable.id, roomId));
 
         if (!roomData) {
-            return NextResponse.json({ error: 'Room not found or access denied' }, { status: 404 });
+            return NextResponse.json({ error: 'Room not found' }, { status: 404 });
         }
 
-        return NextResponse.json(roomData);
+        return NextResponse.json({ ...roomData, role: membership.role });
     } catch (error) {
         const { status, body } = buildErrorResponse(error);
         return NextResponse.json(body, { status });

@@ -39,7 +39,12 @@ export async function GET(req: Request) {
                     peakTime: [],
                     engagement: { totalStudents: 0, totalDoubts: 0, totalReplies: 0 },
                     weakTopics: [],
-                    topContributors: []
+                    topContributors: [],
+                    classroomSettings: {
+                        pedagogyLevel: "Undergraduate (Freshman)",
+                        targetGradeLevel: 13
+                    },
+                    recentAIReplies: []
                 });
             }
 

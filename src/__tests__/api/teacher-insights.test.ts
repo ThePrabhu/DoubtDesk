@@ -64,7 +64,7 @@ describe('Teacher Insights API Endpoint', () => {
         const json = await res.json();
 
         expect(res.status).toBe(400);
-        expect(json.error).toBe('classroomId is required');
+        expect(json.error).toBe('Invalid classroom ID');
     });
 
     it('returns 403 when the user is not the teacher of the classroom', async () => {
@@ -72,7 +72,7 @@ describe('Teacher Insights API Endpoint', () => {
             primaryEmailAddress: { emailAddress: 'teacher@example.com' },
         });
 
-        selectResultsQueue.push([]);
+        selectResultsQueue.push([], []);
 
         const req = new NextRequest('http://localhost/api/teacher/insights?classroomId=7');
         const res = await GET(req);
