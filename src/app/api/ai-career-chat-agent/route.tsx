@@ -22,10 +22,16 @@ export async function POST(req: NextRequest) {
         const { errorResponse } = await checkUserBlock(email);
         if (errorResponse) return errorResponse;
 
-        const body = await req.json();
+        let body: { userInput?: unknown };
+        try {
+            body = await req.json();
+        } catch {
+            return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+        }
+
         const userInput = body.userInput;
 
-        if (!userInput) {
+        if (typeof userInput !== "string" || !userInput.trim()) {
             return NextResponse.json({ error: "userInput is required" }, { status: 400 });
         }
 
@@ -89,28 +95,33 @@ Strict Focus Rules:
 Always focus on helping the user move one step closer to their career goal.
 `;
 
-        const response = await axios.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            {
-                model: "llama-3.3-70b-versatile",
-                messages: [
-                    { role: "system", content: systemPrompt },
-                    { role: "user", content: userInput }
-                ],
-            },
-            {
-                headers: {
-                    "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
-                    "Content-Type": "application/json",
+        try {
+            const response = await axios.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                {
+                    model: "llama-3.3-70b-versatile",
+                    messages: [
+                        { role: "system", content: systemPrompt },
+                        { role: "user", content: userInput }
+                    ],
                 },
-            }
-        );
+                {
+                    headers: {
+                        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
+                        "Content-Type": "application/json",
+                    },
+                }
+            );
 
-        const aiResponse = response.data.choices[0].message.content;
+            const aiResponse = response.data.choices[0].message.content;
 
-        return NextResponse.json({ output: aiResponse });
+            return NextResponse.json({ output: aiResponse });
+        } catch (error: unknown) {
+            console.error("AI Career Chat Provider Error:", error);
+            return buildAiProviderErrorResponse(error);
+        }
     } catch (error: unknown) {
         console.error("AI Career Chat Error:", error);
-        return buildAiProviderErrorResponse(error);
+        return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }
 }
