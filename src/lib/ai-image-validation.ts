@@ -1,7 +1,12 @@
 export const AI_REQUEST_MAX_BYTES = 4 * 1024 * 1024;
 export const AI_IMAGE_MAX_BYTES = 3 * 1024 * 1024;
-export const AI_REQUEST_MAX_SIZE_LABEL = '4MB';
-export const AI_IMAGE_MAX_SIZE_LABEL = '3MB';
+
+function formatMegabytes(bytes: number) {
+    return `${bytes / (1024 * 1024)}MB`;
+}
+
+export const AI_REQUEST_MAX_SIZE_LABEL = formatMegabytes(AI_REQUEST_MAX_BYTES);
+export const AI_IMAGE_MAX_SIZE_LABEL = formatMegabytes(AI_IMAGE_MAX_BYTES);
 export const AI_IMAGE_ALLOWED_TYPES_LABEL = 'PNG, JPG, WEBP';
 export const AI_IMAGE_ALLOWED_MIME_TYPES = [
     'image/png',

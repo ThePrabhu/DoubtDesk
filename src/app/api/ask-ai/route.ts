@@ -383,10 +383,25 @@ export async function POST(req: Request) {
             typeof body.prompt === 'string' ? body.prompt : '';
         const solveType =
             typeof type === 'string' ? type : 'standard';
-        const classroomIdValue =
-            typeof classroomId === 'string' || typeof classroomId === 'number'
-                ? classroomId
-                : null;
+        let classroomIdValue: number | null = null;
+
+        if (classroomId !== undefined && classroomId !== null) {
+            const parsedClassroomId =
+                typeof classroomId === 'string' || typeof classroomId === 'number'
+                    ? Number(classroomId)
+                    : Number.NaN;
+
+            if (!Number.isSafeInteger(parsedClassroomId) || parsedClassroomId <= 0) {
+                return jsonError(
+                    'Invalid classroomId.',
+                    422,
+                    'INVALID_CLASSROOM_ID'
+                );
+            }
+
+            classroomIdValue = parsedClassroomId;
+        }
+
         const validatedImage = imageBase64
             ? validateAiImageDataUrl(imageBase64)
             : null;
@@ -443,7 +458,7 @@ export async function POST(req: Request) {
                         targetGradeLevel: classroomsTable.targetGradeLevel,
                     })
                     .from(classroomsTable)
-                    .where(eq(classroomsTable.id, parseInt(classroomIdValue.toString(), 10)));
+                    .where(eq(classroomsTable.id, classroomIdValue));
                 if (classroom) {
                     pedagogyLevel = classroom.pedagogyLevel;
                     targetGradeLevel = classroom.targetGradeLevel;
@@ -666,12 +681,7 @@ ${prompt ? `Additional context from student: ${prompt}` : ''}`;
                             prompt || 'Visual Inquiry',
                         imageUrl:
                             safeImageBase64?.slice(0, 500),
-                        classroomId: classroomIdValue
-                            ? parseInt(
-                                  classroomIdValue.toString(),
-                                  10
-                              )
-                            : null,
+                        classroomId: classroomIdValue,
                         type: 'ai',
                         isSolved: 'solved',
                     })

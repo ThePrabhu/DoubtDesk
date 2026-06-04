@@ -15,6 +15,7 @@ import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import {
+    AI_IMAGE_ALLOWED_MIME_TYPES,
     AI_IMAGE_ALLOWED_TYPES_LABEL,
     AI_IMAGE_MAX_BYTES,
     AI_IMAGE_MAX_SIZE_LABEL,
@@ -410,7 +411,7 @@ export default function AskAIPage() {
                                 </>
                             ) : (
                                 <>
-                                    <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
+                                    <input type="file" accept={AI_IMAGE_ALLOWED_MIME_TYPES.join(',')} className="hidden" ref={fileInputRef} onChange={handleImageUpload} />
                                     {!imageBase64 ? (
                                         <button
                                             onClick={() => fileInputRef.current?.click()}

@@ -157,6 +157,26 @@ describe('Ask AI API Endpoint', () => {
         });
     });
 
+    it('POST should reject malformed classroom IDs without coercing them', async () => {
+        const req = new Request('http://localhost/api/ask-ai', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                prompt: 'What is the speed of light?',
+                classroomId: '12abc',
+            }),
+        });
+
+        const res = await POST(req);
+        const json = await res.json();
+
+        expect(res.status).toBe(422);
+        expect(json).toEqual({
+            error: 'Invalid classroomId.',
+            code: 'INVALID_CLASSROOM_ID',
+        });
+    });
+
     it('POST should reject request bodies larger than the configured limit', async () => {
         const req = new Request('http://localhost/api/ask-ai', {
             method: 'POST',
