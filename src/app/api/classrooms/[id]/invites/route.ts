@@ -31,11 +31,11 @@ export async function POST(
     if (errorResponse) return errorResponse;
 
     const user = await currentUser();
-    if (!user || !user.primaryEmailAddress?.emailAddress) {
+    const email = user?.primaryEmailAddress?.emailAddress;
+
+    if (!email) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-
-    const email = user.primaryEmailAddress.emailAddress;
 
     const { isBlocked, errorResponse: blockErrorResponse } =
       await checkUserBlock(email);
@@ -43,13 +43,6 @@ export async function POST(
 
     const { id } = await params;
     const classroomId = parseInt(id);
-
-    if (isNaN(classroomId)) {
-      return NextResponse.json(
-        { error: "Invalid classroom ID" },
-        { status: 400 },
-      );
-    }
 
     const [classroom] = await db
       .select()
