@@ -273,6 +273,20 @@ export async function POST(req: Request) {
 
         const subTopic = await categorizeDoubt(content || "", subject, imageUrl);
 
+        let parsedCreatedAt: Date | undefined = undefined;
+        if (data.createdAt) {
+            const d = new Date(data.createdAt);
+            if (isNaN(d.getTime())) {
+                return NextResponse.json({ error: "Invalid createdAt date format" }, { status: 400 });
+            }
+            const now = new Date();
+            const age = now.getTime() - d.getTime();
+            const maxOfflineDuration = 30 * 24 * 60 * 60 * 1000; // 30 days
+            if (age >= -300000 && age <= maxOfflineDuration) {
+                parsedCreatedAt = d;
+            }
+        }
+
         const [newDoubt] = await db
             .insert(doubtsTable)
             .values({
@@ -283,7 +297,8 @@ export async function POST(req: Request) {
                 content,
                 imageUrl,
                 classroomId: parsedClassroomId,
-                type: doubtType
+                type: doubtType,
+                createdAt: parsedCreatedAt
             })
             .returning();
 
