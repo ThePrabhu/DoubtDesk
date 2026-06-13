@@ -1,5 +1,5 @@
 import React from "react";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import Header from "@/components/Header";
 import { useRouter, usePathname } from "next/navigation";
 import { useAppUser } from "@/app/provider";
@@ -51,6 +51,20 @@ describe("Header", () => {
     (useAppUser as jest.Mock).mockReturnValue({ appUser: null });
     // Mock window.history.length to enable back button by default
     jest.spyOn(window.history, 'length', 'get').mockReturnValue(2);
+    
+    // Mock matchMedia for scrollToSection
+    window.matchMedia = window.matchMedia || function() {
+      return {
+        matches: false,
+        media: "",
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      };
+    };
   });
 
   afterEach(() => {
@@ -64,6 +78,7 @@ describe("Header", () => {
   });
 
   it("handles back button click", () => {
+    (usePathname as jest.Mock).mockReturnValue("/dashboard");
     render(<Header />);
     const backButton = screen.getAllByRole("button", { name: /go back/i })[0];
     expect(backButton).not.toBeDisabled();
@@ -72,6 +87,7 @@ describe("Header", () => {
   });
 
   it("disables back button if history is empty", () => {
+    (usePathname as jest.Mock).mockReturnValue("/dashboard");
     jest.spyOn(window.history, 'length', 'get').mockReturnValue(1);
     render(<Header />);
     const backButton = screen.getAllByRole("button", { name: /go back/i })[0];
@@ -89,15 +105,18 @@ describe("Header", () => {
     render(<Header />);
     const link = screen.getAllByText("How it works")[0];
     
+    // Mock window.scrollTo
+    const mockScrollTo = jest.fn();
+    window.scrollTo = mockScrollTo;
+
     // Mock getElementById
-    const mockScrollIntoView = jest.fn();
-    const mockElement = { scrollIntoView: mockScrollIntoView };
+    const mockElement = { getBoundingClientRect: () => ({ top: 500 }) };
     jest.spyOn(document, 'getElementById').mockReturnValue(mockElement as any);
 
     fireEvent.click(link);
     
     expect(document.getElementById).toHaveBeenCalledWith("how-it-works");
-    expect(mockScrollIntoView).toHaveBeenCalledWith({ behavior: "smooth" });
+    expect(mockScrollTo).toHaveBeenCalled();
   });
 
   it("handles scroll navigation from different page", () => {
@@ -111,6 +130,7 @@ describe("Header", () => {
   });
 
   it("toggles mobile menu", () => {
+    (usePathname as jest.Mock).mockReturnValue("/dashboard");
     render(<Header />);
     const toggleButton = screen.getByRole("button", { name: /toggle navigation menu/i });
     
